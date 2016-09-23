@@ -5,6 +5,7 @@ import org.wso2.carbon.identity.sso.cas.CASEndpointConstants;
 
 public class HandlerConstants {
 	public static final String COMMON_AUTH_ENDPOINT = "/commonauth";
+	public static final String COMMON_AUTH_URL = "https://localhost:9443/commonauth";
 	public static final String CARBON_APP = "/carbon/";
 	
 	public static final String TRUE_FLAG_STRING = "true";

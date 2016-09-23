@@ -20,12 +20,22 @@ package org.wso2.carbon.identity.sso.cas.response;
 
 import org.opensaml.saml2.core.Response;
 import org.opensaml.saml2.core.impl.ResponseBuilder;
+import org.wso2.carbon.identity.application.authentication.framework.inbound.FrameworkRuntimeException;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityMessageContext;
+import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityRequest;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityResponse;
+
+import javax.servlet.http.Cookie;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class SAMLResponse extends IdentityResponse {
 
     private Response response;
+//    private Map< Cookie> cookies = new HashMap<>();
+
+    private List<Cookie> cookies;
 
     protected SAMLResponse(IdentityResponseBuilder builder) {
         super(builder);
@@ -55,6 +65,15 @@ public class SAMLResponse extends IdentityResponse {
             this.response = response;
             return this;
         }
+    }
+
+    public SAMLResponse addCookie(Cookie value) {
+//        if (this.cookies.containsKey(name)) {
+//            throw FrameworkRuntimeException.error("Cookies map trying to override existing " +
+//                    "cookie " + name);
+//        }
+        this.cookies.add(value);
+        return this;
     }
 
 }

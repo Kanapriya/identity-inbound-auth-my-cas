@@ -20,18 +20,20 @@ package org.wso2.carbon.identity.sso.cas.response;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.joda.time.DateTime;
-import org.opensaml.common.SAMLVersion;
 import org.opensaml.saml2.core.*;
 import org.opensaml.saml2.core.impl.StatusBuilder;
 import org.opensaml.saml2.core.impl.StatusCodeBuilder;
 import org.opensaml.saml2.core.impl.StatusMessageBuilder;
-import org.opensaml.xml.encryption.EncryptionConstants;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityMessageContext;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityResponse;
+import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.base.IdentityException;
-import org.wso2.carbon.identity.core.model.SAMLSSOServiceProviderDO;;
-import org.wso2.carbon.identity.sso.cas.context.SAMLMessageContext;
+import org.wso2.carbon.identity.core.model.SAMLSSOServiceProviderDO;
+import org.wso2.carbon.identity.sso.cas.context.CASMessageContext;
+import org.wso2.carbon.identity.sso.cas.handler.ProtocolConstants;
+import org.wso2.carbon.identity.sso.cas.request.SAMLIdentityRequest;
+import org.wso2.carbon.identity.sso.cas.ticket.ServiceTicket;
+import org.wso2.carbon.identity.sso.cas.util.CASSSOUtil;
 
 
 public class SAMLLoginResponse extends SAMLResponse {
@@ -42,6 +44,8 @@ public class SAMLLoginResponse extends SAMLResponse {
     private String subject;
     private String authenticatedIdPs;
     private String tenantDomain;
+    private static String success = "yes\n%s\n";
+    private static String failure = "no\n\n";
 
     protected SAMLLoginResponse(IdentityResponse.IdentityResponseBuilder builder) {
         super(builder);
@@ -77,8 +81,8 @@ public class SAMLLoginResponse extends SAMLResponse {
         return tenantDomain;
     }
 
-    public SAMLMessageContext getContext(){
-        return (SAMLMessageContext)this.context;
+    public CASMessageContext getContext(){
+        return (CASMessageContext)this.context;
     }
 
     public static class SAMLLoginResponseBuilder extends SAMLResponseBuilder {
@@ -100,9 +104,56 @@ public class SAMLLoginResponse extends SAMLResponse {
             return new SAMLLoginResponse(this);
         }
 
+        public String buidResponse() throws IdentityException{
+            String responseString;
+            CASMessageContext messageContext = (CASMessageContext)this.context;
+            SAMLIdentityRequest req = messageContext.getRequest();
+
+            try {
+                log.debug("CAS " + messageContext.getRequestURI() + " query string: " + messageContext.getQueryString());
+
+                String serviceProviderUrl = req.getParameter(ProtocolConstants.SERVICE_PROVIDER_ARGUMENT);
+                String serviceTicketId = req.getParameter(ProtocolConstants.SERVICE_TICKET_ARGUMENT);
+
+                if( serviceTicketId == null || serviceProviderUrl == null) {
+                    responseString = buildFailureResponse();
+                } else {
+                    // "ticket" must be valid and "service" URL argument must match the service provider URL
+                    if( CASSSOUtil.isValidServiceProviderForServiceTicket(serviceTicketId, serviceProviderUrl) ) {
+                        ServiceTicket serviceTicket = CASSSOUtil
+                                .getServiceTicket(serviceTicketId);
+                        String principal = serviceTicket.getParentTicket().getPrincipal();
+
+                        responseString = buildSuccessResponse(principal);
+                    } else {
+                        responseString = buildFailureResponse();
+                    }
+                }
+
+                log.debug("CAS " + req.getRequestURI() + " response: " + responseString);
+            } catch( Exception ex) {
+                log.debug("CAS "+ req.getRequestURI() + " internal error", ex);
+                responseString = buildFailureResponse();
+            }
+
+            return responseString;
+        }
+
+        private String buildSuccessResponse(String userId) {
+            return String.format(
+                    success,
+                    userId
+            );
+        }
+
+        private String buildFailureResponse() {
+            return failure;
+        }
+
+
 //        public String buildResponse() throws IdentityException {
-//            SAMLMessageContext messageContext = (SAMLMessageContext)this.context;
-//            SAMLSSOServiceProviderDO serviceProviderDO = messageContext.getSamlssoServiceProviderDO();
+//            CASMessageContext messageContext = (CASMessageContext)this.context;
+//            ServiceProvider serviceProviderDO = messageContext.getServiceProviderByUrl();
 //            if (log.isDebugEnabled()) {
 //                log.debug("Building SAML Response for the consumer '" + messageContext.getAssertionConsumerURL() + "'");
 //            }

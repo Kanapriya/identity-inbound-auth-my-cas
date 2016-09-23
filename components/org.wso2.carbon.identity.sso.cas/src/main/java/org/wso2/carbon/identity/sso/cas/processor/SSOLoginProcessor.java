@@ -15,35 +15,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.wso2.carbon.identity.sso.cas.processor;
 
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.exception.FrameworkException;
-import org.wso2.carbon.identity.application.authentication.framework.inbound.FrameworkLoginResponse;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityMessageContext;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityProcessor;
 import org.wso2.carbon.identity.application.authentication.framework.inbound.IdentityRequest;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationResult;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
-import org.wso2.carbon.identity.sso.cas.configuration.CASSSOConstants;
-
 import org.wso2.carbon.identity.sso.cas.context.CASMessageContext;
 import org.wso2.carbon.identity.sso.cas.request.SAMLSpInitRequest;
-import org.wso2.carbon.identity.sso.cas.util.CASCookieUtil;
+import org.wso2.carbon.identity.sso.cas.response.SAMLResponse;
 
-import java.util.HashMap;
 
-public class SPInitSSOAuthnRequestProcessor extends IdentityProcessor {
-
-    private String relyingParty;
+public class SSOLoginProcessor extends IdentityProcessor {
+    private static Log log = LogFactory.getLog(SSOLoginProcessor.class);
 
     @Override
     public String getName() {
-        return CASSSOConstants.CAS_SSO;
+        return "SSOLoginProcessor";
     }
 
-    @Override
     public int getPriority() {
-        return 2;
+        return 1;
     }
 
     @Override
@@ -52,25 +49,26 @@ public class SPInitSSOAuthnRequestProcessor extends IdentityProcessor {
     }
 
     @Override
-    public String getRelyingPartyId() {
-        return this.relyingParty;
-    }
-
-    @Override
     public boolean canHandle(IdentityRequest identityRequest) {
-        if (identityRequest instanceof SAMLSpInitRequest && ((SAMLSpInitRequest) identityRequest).getServiceRequest
-                () != null) {
-            return true;
+        IdentityMessageContext context = getContextIfAvailable(identityRequest);
+        if (context != null) {
+            if (context.getRequest() instanceof SAMLSpInitRequest) {
+                return true;
+            }
         }
         return false;
     }
 
     @Override
-    public FrameworkLoginResponse.FrameworkLoginResponseBuilder process(IdentityRequest identityRequest) throws
-            FrameworkException {
-        CASMessageContext messageContext = new CASMessageContext((SAMLSpInitRequest) identityRequest, new
-                HashMap<String, String>());
-        this.relyingParty = messageContext.getRelayState();
-        return buildResponseForFrameworkLogin(messageContext);
+    public SAMLResponse.SAMLResponseBuilder process(IdentityRequest identityRequest) throws FrameworkException {
+
+        CASMessageContext messageContext = (CASMessageContext) getContextIfAvailable(identityRequest);
+        AuthenticationResult authnResult = processResponseFromFrameworkLogin(messageContext, identityRequest);
+        return HandlerManager.getInstance().getResponse(messageContext,authnResult,identityRequest);
+    }
+
+    @Override
+    public String getRelyingPartyId() {
+        return null;
     }
 }
